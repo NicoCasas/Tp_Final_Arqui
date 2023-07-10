@@ -42,6 +42,9 @@ module memory
     end
   end
 
+  // OUTPUT ASSIGN
+  assign o_r_data = reg_o_r_data; 
+  
 endmodule
 
   
