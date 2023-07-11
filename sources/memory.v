@@ -1,9 +1,10 @@
 module memory
   #(
   // PARAMETERS
-    parameter NB_DATA = 8,
-    parameter NB_ADDRESS = 3,
-    parameter N_ADDRESS = 8
+    parameter NB_DATA = 32,
+    parameter N_ADDRESS = 64,
+		parameter NB_ADDRESS = $clog2(N_ADDRESS) // No me acuerdo si habia que sumar o restar 1
+    
   )
   (
   // INPUTS
@@ -25,7 +26,7 @@ module memory
   )
 
   // INTERNAL REGS
-  reg  [NB_DATA-1:0]  mem [N_ADDESS-1:0] ;
+	reg  [NB_DATA-1:0]  mem [N_ADDRESS-1:0] ;
   reg  [NB_DATA-1:0]  reg_o_r_data ;
 
   // WRITE LOGIC  (sync)
