@@ -20,6 +20,10 @@ module memory
     // Clock
     input    wire  [ NB_DATA-1:0 ]      i_clk,
 
+		// Addressing
+		input		 wire	 [ 1 : 0 ]						i_r_addressing,
+		input		 wire	 [ 1 : 0 ]						i_w_addressing,
+		
   // OUTPUTS
     // Read
     output   wire  [NB_DATA-1 : 0]      o_r_data
@@ -37,7 +41,7 @@ module memory
   // WRITE LOGIC  (sync)
   always @(posedge i_clk) begin
     if(i_w_en) begin
-			case (i_addressing)
+			case (i_w_addressing)
 				word_ADDRESSING: begin
 					mem[i_w_addr	  ] <= i_w_data[7:0];
 					mem[i_w_addr + 1] <= i_w_data[15:8];
@@ -61,7 +65,7 @@ module memory
   // READ LOGIC (async)
   always @(*) begin
     if(i_r_en) begin
-			case (i_addressing)
+			case (i_r_addressing)
 				
 				2b'00: begin
 					if(i_r_add[1:0]==2b'00) begin
