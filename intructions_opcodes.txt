@@ -1,0 +1,74 @@
+	opcode		func			
+
+addu	000000		100001 (addu)	rt <- rs+imm	
+addi	001000				rd <- rs+rt
+and	000000		100100 (and)	rd <- rs&rt
+andi	001100				rt <- rt&imm
+nor	000000		100111 (nor)	rd <- ~(rs|rt) 
+or	000000		100101 (or)	rd <- rs|rt
+ori	001101				rd <- rs|imm
+sll	000000		000000  (sll)	rd <- rt<<sa  (rs=0)
+sllv	000000		000100	(sllv)	rd <- rt<<rs  (sa=0)
+sra	000000		000011	(sra)	rd <- rt>>sa  (sa=0) (arithmetic)
+srav	000000		000111	(srav)	rd <- rt>>rs  (sa=0) (arithmetic)
+srl	000000		000010	(srl)	rd <- rt>>sa  (rs=0) (logical)
+srlv	000000		000110	(srlv)	rd <- rt>>rs  (sa=0) (logical)
+subu	000000		100011	(subu)	rd <- rs-rt   (sa=0) 
+xor	000000		100110  (xor)	rd <- rs^rt   (sa=0)
+xori	001110				rt <- rs^imm
+lui	001111				rt <- {imm,16{0}} (rs=0)
+
+localparam addu_FUNC 100001
+localparam and_FUNC  100100
+localparam nor_FUNC  100111
+localparam or_FUNC   100101
+localparam sll_FUNC  000000
+localparam sllv_FUNC 000100
+localparam sra_FUNC  000011
+localparam srav_FUNC 000111
+localparam srl_FUNC  000010
+localparam srlv_FUNC 000110
+localparam subu_FUNC 100011
+localparam xor_FUNC  100110
+
+localparam addu_OPCODE  000000
+localparam addi_OPCODE	001000
+localparam and_OPCODE	000000
+localparam andi_OPCODE	001100
+localparam nor_OPCODE	000000
+localparam or_OPCODE	000000
+localparam ori_OPCODE	001101
+localparam sll_OPCODE	000000
+localparam sllv_OPCODE  000000
+localparam sra_OPCODE   000000
+localparam srav_OPCODE  000000
+localparam srl_OPCODE   000000
+localparam srlv_OPCODE  000000
+localparam xor_OPCODE   000000
+localparam xori_OPCODE  001110
+localparam lui_OPCODE   001111
+
+------------------------------------------------
+	opcode		func			
+
+slt	000000		101010	rd <- (rs<rt)
+slti	001010			rt <- (rs<imm)
+
+beq	000100			if rs=rt  then branch
+bne	000101			if rs!=rt then branch
+
+j	000010			PC <- PC[31-28] || instr_index || {2'b0}
+jal     000011			GPR[31] <- PC+8    &    PC <- {PC[31-28],{instr_index},{2'b0}}
+jalr	000000		001001	rd <- return_addr, PC <- rs
+jr	000000		001000	PC <- rs (rs must be alligned)
+
+lb	100000			rt <- memory[base+offset]
+lbu	100100			rt <- memory[base+offset]
+lh	100001			rt <- memory[base+offset]
+lhu	100101			rt <- memory[base+offset]
+lw	100011			rt <- memory[base+offset]
+lwu (??	100111		?????	rt <- memory[base+offset]	
+
+sb	101000			memory[base+offset] <- rt
+sh	101001			memory[base+offset] <- rt
+sw	101011			memory[base+offset] <- rt
