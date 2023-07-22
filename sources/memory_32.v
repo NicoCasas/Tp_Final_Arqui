@@ -26,7 +26,7 @@ module memory_32
     parameter NB_DATA_BUS = 32,
     parameter NB_DATA = 8,
     parameter N_ADDRESS = 64,                // VER CONSIDERANDO QUE USO TODOS MENOS 2 PARA DIRECCIONAR LA MEMORIA
-	parameter NB_ADDRESS = $clog2(N_ADDRESS) // No me acuerdo si habia que sumar o restar 1
+	  parameter NB_ADDRESS = $clog2(N_ADDRESS) // No me acuerdo si habia que sumar o restar 1
     
   )
   (
@@ -34,7 +34,7 @@ module memory_32
     // Read
     input    wire  [ NB_ADDRESS-1:0]    i_r_addr,
     input    wire                       i_r_en  ,
-	input	 wire	 [ 1 : 0 ]			i_r_addressing,
+		input	 wire	 [ 1 : 0 ]			        i_r_addressing,
 
     // Write
     input    wire  [ NB_DATA_BUS-1 : 0 ]    i_w_data,
@@ -100,8 +100,8 @@ module memory_32
   end    
   
   // Logica para determinar el valor de entrada de escritura a la memoria, junta el valor de i_w_data con lo 
-  // que ya se tenía en la ram.
-  // Variable de interés: w_data
+  // que ya se tenÃ­a en la ram.
+  // Variable de interÃ©s: w_data
   always @(*) begin
     w_data = {NB_DATA_BUS{1'bx}};
     case (i_w_addressing)
