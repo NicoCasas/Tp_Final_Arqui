@@ -69,8 +69,17 @@ module instruction_decoder
     input   wire [NB_ADDRESS       -1:0]    i_pc                ,
     
     //from execution
-    input   wire [NB_ADDR_REGISTERS-1:0]    i_ex_rt             ,
+    input   wire [NB_ADDR_REGISTERS-1:0]    i_ex_rd_num         ,
     input   wire                            i_ex_ctl_mem_read   ,  
+    
+    input   wire [NB_DATA-1:0]              i_ex_rd_data        ,
+    input   wire                            i_ex_ctl_reg_write  ,
+    
+    //from ma
+    input   wire [NB_ADDR_REGISTERS-1:0]    i_ma_rd_num         ,
+    input   wire [NB_DATA-1:0]              i_ma_rd_data        ,
+    input   wire                            i_ma_ctl_reg_write  ,
+    input   wire                            i_ma_ctl_mem_read   ,
     
     //from write_back
     input   wire [NB_DATA_REGISTERS-1:0]    i_wb_reg_data       ,
@@ -133,7 +142,7 @@ reg  [NB_DATA_REGISTERS-1:0] reg_o_ext_sa;
 assign opcode = i_instruction[NB_INSTRUCTIONS-1-:NB_OPCODE];
 assign func = i_instruction[NB_FUNC-1:0];
 
-// Registrar los números de los registros
+// Registrar los nÃºmeros de los registros
 always @(posedge i_clk) begin
     reg_o_rs_num <= i_instruction[25:21];
     reg_o_rt_num <= i_instruction[20:16];
@@ -180,11 +189,11 @@ always @(posedge i_clk) begin
     reg_o_ext_sa      <= ext_sa;
 end
 
-// Lógica
+// LÃ³gica
 assign ext_literal = {{16{i_instruction[15]}},{i_instruction[15:0]}};
 assign ext_sa      = {{27{1'b0}},{i_instruction[10:6]}};
 
-// Asignación de las salidas
+// AsignaciÃ³n de las salidas
 assign o_ext_literal = reg_o_ext_literal;
 assign o_ext_sa      = reg_o_ext_sa;    
 
@@ -238,7 +247,7 @@ end
 assign o_control_bus = control_bus;
 
 // EXECUTION CONTROL LOGIC
-//ver si poner lo de alu_op acá o por separado
+//ver si poner lo de alu_op acÃ¡ o por separado
 wire ctl_reg_dest;
 wire ctl_mux_rt_imm;
 wire ctl_mux_rs_sa;
@@ -321,6 +330,13 @@ wire     branch_condition;
 wire     cond_jump;
 reg      incond_jump;
 
+reg [NB_DATA-1:0]  id_rs_data;
+reg [NB_DATA-1:0]  id_rt_data;
+
+wire [NB_ADDR_REGISTERS-1:0] id_rs_num;
+wire [NB_ADDR_REGISTERS-1:0] id_rt_num;
+
+
 reg  [NB_ADDRESS-1:0]    reg_o_pc_delay_slot;
 
 // Logica para determinar la condicion de salto
@@ -328,7 +344,7 @@ assign shifted_ext_literal = {ext_literal[NB_DATA-3:0],2'b0};
 
 // Logica para calcular la direccion de salto
 always @(*)begin
-    jump_addr = bus_a; // si es jr o jalr                                                            
+    jump_addr = id_rs_data;//bus_a; // si es jr o jalr                                                            
     //if (opcode[NB_OPCODE:1]==5'b00010) jump_addr = i_pc + shifted_ext_literal;     // si beq o bneq                     
     if (opcode[2]==1'b1) jump_addr = i_pc + shifted_ext_literal;     // si beq o bneq                     
     if (opcode[1]==1'b1) jump_addr = {i_pc[NB_INSTRUCTIONS-1:28],i_instruction[25:0],2'b0}; //si es j o jal
@@ -348,16 +364,31 @@ end
 assign cond_jump = (opcode[NB_OPCODE-1:1] == 5'b00010);
 
 // Logica para determinar la condicion del salto
-assign rs_eq_rt = (bus_a==bus_b);
+assign id_rs_num = i_instruction[25:21];
+assign id_rt_num = i_instruction[20:16];
+
+always @(*)begin
+    id_rs_data = bus_a;
+    if((id_rs_num == i_ma_rd_num) && i_ma_ctl_reg_write) id_rs_data = i_ma_rd_data;    
+    if((id_rs_num == i_ex_rd_num) && i_ex_ctl_reg_write) id_rs_data = i_ex_rd_data;
+end
+
+always @(*)begin
+    id_rt_data = bus_b;
+    if((id_rt_num == i_ma_rd_num) && i_ma_ctl_reg_write) id_rt_data = i_ma_rd_data;    
+    if((id_rt_num == i_ex_rd_num) && i_ex_ctl_reg_write) id_rt_data = i_ex_rd_data;
+end
+
+assign rs_eq_rt = (id_rs_data==id_rt_data);
 assign eq_condition = ~opcode[0];   // Que sea 1 si es beq y 0 si beqn
 
 //assign eq_condition = (opcode[NB_OPCODE-1:2] == 4'b0001) ? opcode[0] : 1'b0;
 assign branch_condition = ~(eq_condition ^ rs_eq_rt);
 
 // Logica para determinar si el salto se toma
-assign branch = incond_jump | (cond_jump & branch_condition);
+assign branch =  (incond_jump | (cond_jump & branch_condition)); //& ~id_stall ; Parece que ya lo controlaba en if :) 
 
-// Asignación de las salidas
+// AsignaciÃ³n de las salidas
 assign o_if_branch      = branch;
 assign o_if_branch_addr = jump_addr;
 
@@ -372,14 +403,23 @@ assign o_pc_delay_slot = reg_o_pc_delay_slot;
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////DETECTOR DE RIESGOS (HAZARD DETECTION UNIT)/////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
+wire [NB_ADDR_REGISTERS-1:0] i_ex_rt_num;
+
+assign i_ex_rt_num = i_ex_rd_num;
 
 always @(*) begin
     id_stall = 1'b0;
     if(i_ex_ctl_mem_read) begin
-        if(i_ex_rt == i_instruction[25:21] || i_ex_rt == i_instruction[20:16]) begin
+        if((i_ex_rt_num == i_instruction[25:21]) || (i_ex_rt_num == i_instruction[20:16])) begin
             id_stall = 1'b1;
         end
     end
+    if(i_ma_ctl_mem_read) begin
+        if(cond_jump && (i_ma_rd_num == id_rs_num || i_ma_rd_num == id_rt_num)) begin
+            id_stall = 1'b1;
+        end
+    end
+    
 end
 
 //Asignar salida
