@@ -46,6 +46,7 @@ wire [NB_ADDRESS-1:0]   next_pc_2;
 
 reg  [NB_ADDRESS-1:0]   reg_o_next_pc_1;
 
+wire branch_en;
 wire mem_r_en;
 
 //instruction register
@@ -83,12 +84,13 @@ assign next_pc_1 = pc + {{NB_ADDRESS-3{1'b0}},3'b100};
 
 //next_pc_2
 assign next_pc_2 = i_branch_addr;
+assign branch_en = i_branch_addr[1:0] == {2{1'b0}};
 
 //next_pc
 always @(*) begin
-                    next_pc = next_pc_1;
-    if(i_branch)    next_pc = next_pc_2;
-    if(i_stall)     next_pc = pc;           // La prioridad la tiene el stall
+                             next_pc = next_pc_1;
+    if(i_branch & branch_en) next_pc = next_pc_2;
+    if(i_stall)              next_pc = pc;           // La prioridad la tiene el stall
     
 end
 
