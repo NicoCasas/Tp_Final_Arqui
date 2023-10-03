@@ -73,13 +73,13 @@ wire [NB_ALU_OP     -1 : 0]     id_alu_op        ;
 // Referido a un stall
 wire                            id_if_stall          ;
     
-    // Referido a un branch
+// Referido a un branch
 wire [NB_ADDRESS-1:0]           id_if_branch_addr    ;
 wire                            id_if_branch         ;
     
 //INPUTS        
 //from execution (hazard detection)
-reg [NB_ADDR_REGISTERS-1:0]    reg_ex_rt            = {5{1'b0}}     ;
+reg [NB_ADDR_REGISTERS-1:0]    reg_ex_rd_num        = {5{1'b0}}     ;
 reg                            reg_ex_ctl_mem_read  = 1'b0   ;  
     
 //from write_back
@@ -99,6 +99,10 @@ wire    [NB_ADDR_REGISTERS-1:0]  ex_rd_num          ;//rt o rd
     
 wire    [NB_ADDR_REGISTERS-1:0]  ex_id_rd_num       ;
 wire                             ex_id_ctl_mem_read ;
+
+wire                             ex_id_ctl_reg_write;
+wire    [NB_DATA-1:0]            ex_id_alu_result   ;
+    
     
 //INPUTS   
     
@@ -122,6 +126,7 @@ wire    [NB_ADDR_REGISTERS-1:0] ma_reg_num          ;
 wire    [NB_ADDR_REGISTERS-1:0] ma_ex_rd_num        ;
 wire    [NB_DATA-1:0]           ma_ex_rd_data;
 wire                            ma_ex_ctl_reg_write ;
+wire                            ma_id_ctl_mem_read  ;
 
 /////////////////////////////// WB ////////////////////////////
 wire    [NB_DATA-1:0]           wb_reg_w_data       ;
@@ -163,7 +168,7 @@ uut_instruction_fetch
     .i_branch       (reg_branch)        ,
     .i_branch_addr  (reg_branch_addr)   ,
     
-    .i_stall        (reg_stall)         ,
+    .i_stall        (id_if_stall)         ,
     
     .i_clk          (clk)           ,
     .i_reset        (i_reset)
@@ -209,15 +214,24 @@ uut_instruction_decoder
     .i_pc             (if_next_pc)     ,
     
     //from execution
-    .i_ex_rt            (reg_ex_rt) ,
-    .i_ex_ctl_mem_read  (reg_ex_ctl_mem_read) ,  
+    .i_ex_rd_num        (ex_id_rd_num)         ,    // conecte esto 
+    .i_ex_ctl_mem_read  (ex_id_ctl_mem_read)   ,    // y esto -> No debería modificar nada
+    
+    .i_ex_rd_data       (ex_id_alu_result)      ,
+    .i_ex_ctl_reg_write (ex_id_ctl_reg_write)   ,
+    
+    //from ma
+    .i_ma_rd_num        (ma_ex_rd_num )         ,
+    .i_ma_rd_data       (ma_ex_rd_data)         ,
+    .i_ma_ctl_reg_write (ma_ex_ctl_reg_write )  ,
+    .i_ma_ctl_mem_read  (ma_id_ctl_mem_read  )  ,
     
     //from write_back
-    .i_wb_reg_data      (wb_reg_w_data) ,
-    .i_wb_reg_addr      (wb_reg_num)    ,
-    .i_wb_reg_en        (wb_reg_w_en)   ,
+    .i_wb_reg_data      (wb_reg_w_data)         ,
+    .i_wb_reg_addr      (wb_reg_num)            ,
+    .i_wb_reg_en        (wb_reg_w_en)           ,
     
-    .i_clk              (clk) ,
+    .i_clk              (clk)                   ,
     .i_reset            (i_reset)
 );
 
@@ -228,15 +242,19 @@ execution
 uut_exectution
 (
   //OUTPUTS
-    .o_control_ma_wb    (ex_control_ma_wb)  ,
+    .o_control_ma_wb    (ex_control_ma_wb)   ,
     
-    .o_result           (ex_result)             ,        
-    .o_w_data_mem       (ex_w_data_mem)         ,
+    .o_result           (ex_result)          ,        
+    .o_w_data_mem       (ex_w_data_mem)      ,
     
     .o_rd_num           (ex_rd_num)          ,//rt o rd
     
     .o_id_rd_num        (ex_id_rd_num)       ,
     .o_id_ctl_mem_read  (ex_id_ctl_mem_read) ,
+    
+    .o_id_ctl_reg_write (ex_id_ctl_reg_write),
+    .o_id_alu_result    (ex_id_alu_result)   ,
+    
     
  //INPUTS   
     // de control
@@ -287,7 +305,8 @@ uut_memory_access
     
     .o_ex_rd_num        (ma_ex_rd_num)      ,
     .o_ex_rd_data       (ma_ex_rd_data)     ,
-    .o_ex_ctl_reg_write (ma_ex_ctl_reg_write)      ,
+    .o_ex_ctl_reg_write (ma_ex_ctl_reg_write)       ,
+    .o_id_ctl_mem_read  (ma_id_ctl_mem_read)        ,
     
     //INPUTS                                                            //agregar rd_num
     .i_mem_data         (ex_w_data_mem)     ,
