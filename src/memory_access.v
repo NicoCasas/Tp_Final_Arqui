@@ -33,6 +33,7 @@ module memory_access
     output  wire    [NB_ADDR_REGISTERS-1:0] o_ex_rd_num         ,
     output  wire                            o_ex_ctl_reg_write  ,
     output  wire    [NB_DATA-1:0]           o_ex_rd_data        ,
+    output  wire                            o_id_ctl_mem_read   ,
                                                                 //agregar rd_num
     input   wire    [NB_DATA-1:0]           i_mem_data          ,
     input   wire    [NB_DATA-1:0]           i_mem_addr          ,
@@ -59,7 +60,7 @@ reg     [NB_CONTROL_WB -1:0]    reg_o_control_wb   ;
 
 
 
-// Asigno las señales de control usando el ctl bus
+// Asigno las seÃ±ales de control usando el ctl bus
 assign ctl_mem_read   = i_control_ma_wb[NB_CONTROL_MA_WB-1];
 assign ctl_mem_write  = i_control_ma_wb[NB_CONTROL_MA_WB-2];
 assign ctl_addressing = i_control_ma_wb[NB_CONTROL_MA_WB-3-:2];
@@ -112,6 +113,7 @@ assign o_control_wb = reg_o_control_wb;
 assign o_ex_rd_num  = i_rd_num;
 assign o_ex_rd_data = i_mem_addr;
 assign o_ex_ctl_reg_write = i_control_ma_wb[0];    // Esto ver en id
+assign o_id_ctl_mem_read = ctl_mem_read;
 
 
 endmodule
