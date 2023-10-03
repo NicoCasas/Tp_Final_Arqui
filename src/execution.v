@@ -31,8 +31,13 @@ module execution
     
     output  wire    [NB_ADDR_REGISTERS-1:0] o_rd_num          ,//rt o rd
     
+    //salidas no registradas (hazard detection en id)
     output  wire    [NB_ADDR_REGISTERS-1:0] o_id_rd_num       ,
     output  wire                            o_id_ctl_mem_read ,
+    
+    //salidas no registradas (cortocircuito en id)
+    output  wire                            o_id_ctl_reg_write,
+    output  wire    [NB_DATA-1:0]           o_id_alu_result   ,
     
  //INPUTS   
     // de control
@@ -83,19 +88,19 @@ wire [NB_DATA-1:0]   alu_result;
 reg  [NB_DATA-1:0]   ex_rs_data;
 reg  [NB_DATA-1:0]   ex_rt_data;
 
-//salida del mux de reg dest -> Considera rd o rt y despuÈs considera si era jal
+//salida del mux de reg dest -> Considera rd o rt y despu√©s considera si era jal
 wire [NB_ADDR_REGISTERS-1:0]   ex_rd_num;
 
 //salida del mux de rd or rt
 wire [NB_ADDR_REGISTERS-1:0]   rd_or_rt_num;
 
-// SeÒales De Control
-// seÒales de control de los muxes de cortocircuito
+// Se√±ales De Control
+// se√±ales de control de los muxes de cortocircuito
 wire                 ctl_mux_rs_sa ;
 wire                 ctl_mux_rt_imm;
 wire                 ctl_mux_use_pc;
 
-// seÒales para determinar sobre quÈ registro escribir
+// se√±ales para determinar sobre qu√© registro escribir
 wire                 ctl_reg_dest;
 wire                 ctl_reg_dest_31;
 
@@ -113,7 +118,7 @@ assign ctl_reg_dest_31 = i_control_bus[ctl_reg_dest_31_POS];
 assign ex_rd_num        = (ctl_reg_dest_31) ? 5'b11111 : rd_or_rt_num;
 assign rd_or_rt_num     = (ctl_reg_dest)    ? i_id_rd_num : i_id_rt_num;
 
-// Asignacion de las seÒales de control de los muxes de cortocircuito
+// Asignacion de las se√±ales de control de los muxes de cortocircuito
 assign ctl_mux_use_pc = i_control_bus[ctl_mux_use_pc_POS];
 assign ctl_mux_rs_sa  = i_control_bus[ctl_mux_rs_sa_POS ];
 assign ctl_mux_rt_imm = i_control_bus[ctl_mux_rt_imm_POS];
@@ -190,7 +195,10 @@ assign o_result         = reg_o_result;
 assign o_w_data_mem     = reg_o_w_data_mem;
 assign o_rd_num         = reg_o_rd_num;
 
-assign o_id_rd_num        = i_id_rt_num;
+assign o_id_rd_num        = ex_rd_num;
 assign o_id_ctl_mem_read  = i_control_bus[NB_CONTROL_MA_WB-1]; 
+
+assign o_id_ctl_reg_write = ex_ctl_rw;
+assign o_id_alu_result    = alu_result;
 
 endmodule
