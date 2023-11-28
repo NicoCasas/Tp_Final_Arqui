@@ -52,7 +52,7 @@ assign ctl_reg_write  = i_control_wb[0];
 
 //assign not_zero_en = (i_reg_num != {NB_ADDR_REGISTERS{1'b0}});
 
-//output assing
+//output assign
 assign o_reg_w_data = (ctl_mem_to_reg) ? i_mem_data : i_reg_data; 
 assign o_reg_w_en   = ctl_reg_write; //& not_zero_en;
 assign o_reg_num    = i_reg_num;
