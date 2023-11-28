@@ -46,7 +46,7 @@ module register_bank
   end
   
   // OUTPUT ASSIGN
-	assign o_sr1_data = registers[i_sr1_addr]; // Considerar hacer toda la logica en sentencia usando '?' (if de los wires)
+	assign o_sr1_data = registers[i_sr1_addr]; 
 	assign o_sr2_data = registers[i_sr2_addr];
 	
 endmodule
