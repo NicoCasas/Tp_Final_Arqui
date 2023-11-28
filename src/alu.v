@@ -34,7 +34,7 @@ module alu
     localparam  op_lui   = 6'b001111;   //ver si esta ocupado
     localparam  op_jmp   = 6'b001001;
     localparam  op_sll   = 6'b000000;
-    localparam  op_slv   = 6'b000100;
+    localparam  op_sllv  = 6'b000100;
     localparam  op_srav  = 6'b000111;
     localparam  op_srlv  = 6'b000110;
     
@@ -55,7 +55,7 @@ module alu
              op_srlv :   resultado =     i_dato_b  >> i_dato_a          ;
              op_nor  :   resultado =   ~(i_dato_a  |  i_dato_b)         ;
              op_sll  :   resultado =     i_dato_b <<  i_dato_a          ;
-             
+             op_sllv :   resultado =     i_dato_b <<  i_dato_a          ;
              
              op_slt  :   resultado =     {{(NB_DATA-1){1'b0}}, i_dato_a<i_dato_b}    ;   
              op_lui  :   resultado =     {i_dato_b[15:0],{16{1'b0}}}     ;
