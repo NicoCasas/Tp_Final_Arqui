@@ -66,8 +66,9 @@ module execution
     input   wire    [NB_ADDR_REGISTERS-1:0] i_wb_rd_num ,
     input   wire                            i_wb_ctl_rw ,
     
-    input   wire    i_reset,
-    input   wire    i_clk
+    input   wire    i_reset     ,
+    input   wire    i_clk       ,
+    input   wire    i_clk_en    
 );
 
 //LOCALPARAMS
@@ -164,7 +165,7 @@ assign ex_ctl_rw = i_control_bus[0] & rd_not_zero;
 // o_control_ma_wb
 always @(posedge i_clk) begin
     if(i_reset) reg_o_control_ma_wb <= {NB_CONTROL_MA_WB{1'b0}};
-    else begin  
+    else if(i_clk_en) begin  
                 reg_o_control_ma_wb[NB_CONTROL_MA_WB-1:1] <= i_control_bus[NB_CONTROL_MA_WB-1:1];
                 reg_o_control_ma_wb[0] <= ex_ctl_rw;
     end
@@ -172,20 +173,20 @@ end
 
 // o_result
 always @(posedge i_clk) begin
-    if(i_reset) reg_o_result <= {NB_DATA{1'b0}};
-    else        reg_o_result <= alu_result;
+    if      (i_reset)       reg_o_result <= {NB_DATA{1'b0}};
+    else if (i_clk_en)      reg_o_result <= alu_result;
 end
 
 // o_write_data_mem
 always @(posedge i_clk) begin
-    if(i_reset) reg_o_w_data_mem <= {NB_DATA{1'b0}};
-    else        reg_o_w_data_mem <= ex_rt_data;
+    if      (i_reset)       reg_o_w_data_mem <= {NB_DATA{1'b0}};
+    else if (i_clk_en)      reg_o_w_data_mem <= ex_rt_data;
 end
 
 // o_rd_num
 always @(posedge i_clk) begin
-    if(i_reset) reg_o_rd_num <= {NB_ADDR_REGISTERS{1'b0}};
-    else        reg_o_rd_num <= ex_rd_num;
+    if      (i_reset)       reg_o_rd_num <= {NB_ADDR_REGISTERS{1'b0}};
+    else if (i_clk_en)      reg_o_rd_num <= ex_rd_num;
 end
 
 
