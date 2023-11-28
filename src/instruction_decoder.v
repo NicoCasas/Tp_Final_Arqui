@@ -57,10 +57,16 @@ module instruction_decoder
     
     // Referido a un stall
     output  wire                            o_if_stall          ,
+
+    // Referido a un halt
+    output  wire                            o_if_halt           ,
     
     // Referido a un branch
     output  wire [NB_ADDRESS-1:0]           o_if_branch_addr    ,
     output  wire                            o_if_branch         ,
+    
+    // Referido a debug
+    output  wire [NB_DATA-1:0]              o_debug_reg_data    ,
     
     //INPUTS
     
@@ -86,7 +92,11 @@ module instruction_decoder
     input   wire [NB_ADDR_REGISTERS-1:0]    i_wb_reg_addr       ,
     input   wire                            i_wb_reg_en         ,
     
+    input   wire                            i_debug             ,
+    input   wire [NB_ADDR_REGISTERS-1:0]    i_debug_reg_addr    ,
+    
     input   wire                            i_clk               ,
+    input   wire                            i_clk_en            ,
     input   wire                            i_reset           
 );
 // LOCALPARAMS
@@ -122,6 +132,7 @@ wire [NB_CONTROL_MA-1:0]    control_ma;
 wire [NB_CONTROL_WB-1:0]    control_wb;
 
 reg                         id_stall    ; 
+wire                        halt        ;
 
 reg [NB_DATA_REGISTERS-1:0] reg_o_rs_num;
 reg [NB_DATA_REGISTERS-1:0] reg_o_rt_num;
@@ -139,14 +150,22 @@ wire [NB_DATA_REGISTERS-1:0]  ext_sa;
 reg  [NB_DATA_REGISTERS-1:0] reg_o_ext_literal;
 reg  [NB_DATA_REGISTERS-1:0] reg_o_ext_sa;
 
-assign opcode = i_instruction[NB_INSTRUCTIONS-1-:NB_OPCODE];
-assign func = i_instruction[NB_FUNC-1:0];
+wire [NB_ADDR_REGISTERS-1:0] sr2_addr;
+
+assign opcode   = i_instruction[NB_INSTRUCTIONS-1-:NB_OPCODE];
+assign func     = i_instruction[NB_FUNC-1:0];
+
+
+assign sr2_addr = (~i_debug) ? i_instruction[20:16] : i_debug_reg_addr;
+
 
 // Registrar los números de los registros
 always @(posedge i_clk) begin
-    reg_o_rs_num <= i_instruction[25:21];
-    reg_o_rt_num <= i_instruction[20:16];
-    reg_o_rd_num <= i_instruction[15:11];
+    if(i_clk_en) begin
+        reg_o_rs_num <= i_instruction[25:21];
+        reg_o_rt_num <= i_instruction[20:16];
+        reg_o_rd_num <= i_instruction[15:11];
+    end
 end
 
 // Asignar a las salidas
@@ -156,9 +175,13 @@ assign o_rd_num = reg_o_rd_num;
 
 // Registrar la salida de los buses operando de la alu
 always @(posedge i_clk) begin
-    reg_o_bus_a <= bus_a;
-    reg_o_bus_b <= bus_b;
+    if(i_clk_en) begin
+        reg_o_bus_a <= bus_a;
+        reg_o_bus_b <= bus_b;
+    end
 end
+
+assign o_debug_reg_data = (i_debug) ? bus_b : {NB_DATA{1'bz}};
 
 // REGISTER BANK
 register_bank#(
@@ -169,7 +192,7 @@ register_bank_u(
     .o_sr2_data(bus_b),
     
     .i_sr1_addr(i_instruction[25:21]),
-    .i_sr2_addr(i_instruction[20:16]),
+    .i_sr2_addr(sr2_addr),
     
     .i_dr_data(i_wb_reg_data),
     .i_dr_addr(i_wb_reg_addr),
@@ -185,8 +208,10 @@ assign o_bus_b = reg_o_bus_b;
 
 // Registrar salidas extendidas
 always @(posedge i_clk) begin
-    reg_o_ext_literal <= ext_literal;
-    reg_o_ext_sa      <= ext_sa;
+    if(i_clk_en) begin
+        reg_o_ext_literal <= ext_literal;
+        reg_o_ext_sa      <= ext_sa;
+    end
 end
 
 // Lógica
@@ -199,7 +224,7 @@ assign o_ext_sa      = reg_o_ext_sa;
 
 // Registar la salida de alu_op
 always @(posedge i_clk) begin
-    reg_o_alu_op <= alu_op;
+    if(i_clk_en)   reg_o_alu_op <= alu_op;
 end
 
 // Logica para determinar alu_op
@@ -232,8 +257,8 @@ always @(posedge i_clk) begin
     if(i_reset) begin
         control_bus <= {NB_CONTROL_BUS{1'b0}};
     end
-    else begin
-        if(id_stall) begin 
+    else if(i_clk_en) begin
+        if(id_stall | halt) begin 
             control_bus <= {NB_CONTROL_BUS{1'b0}};
         end
         else begin
@@ -395,7 +420,7 @@ assign o_if_branch_addr = jump_addr;
 
 // Respecto a escribir el retorno
 always @(posedge i_clk) begin
-    reg_o_pc_delay_slot <= i_pc;
+    if (i_clk_en) reg_o_pc_delay_slot <= i_pc;
 end
 
 assign o_pc_delay_slot = reg_o_pc_delay_slot;
@@ -418,13 +443,23 @@ always @(*) begin
         if(cond_jump && (i_ma_rd_num == id_rs_num || i_ma_rd_num == id_rt_num)) begin
             id_stall = 1'b1;
         end
+        if((incond_jump && (~opcode[1])) && (i_ma_rd_num == id_rs_num)) begin  // Si es salto incondicional y usa registro, e.g. jr y jalr.
+            id_stall = 1'b1;
+        end
     end
+    
     
 end
 
 //Asignar salida
 assign o_if_stall = id_stall;
 
+///////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////// HALT //////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////
 
+assign halt = (opcode[NB_OPCODE-2]==1'b1);
+
+assign o_if_halt = halt;
 
 endmodule
