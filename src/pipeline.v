@@ -22,24 +22,39 @@ module pipeline #(
     parameter NB_ALU_OP         =  6,
     
     
-    parameter NB_REGISTERS = 32,
     parameter NB_DATA_REGISTERS = 32,
     
     parameter N_REGISTERS = 32,
     parameter NB_ADDR_REGISTERS = $clog2(N_REGISTERS),
     
     parameter NB_INSTRUCTIONS = 32,    
-    parameter INIT_FILE = "file_to_test_pipeline_1.mem"
+    parameter INIT_FILE = "file_to_test_jumps.mem"//"file_to_test_pipeline_1.mem"
 
 )
 (
     output  wire [31:0] o_wb_reg_w_data         ,
-    output  wire        o_clk                   ,
-    output  wire        o_locked                ,
+    //output  wire        o_clk                   ,
+    //output  wire        o_locked                ,
+    
+    output  wire [NB_ADDRESS-1:0]   o_if_pc        ,
+    output  wire                    o_if_halt      ,
+    
+    output  wire [NB_DATA-1:0]      o_debug_reg_data            ,
+    output  wire [NB_DATA-1:0]      o_debug_d_mem_data          ,
+    
+    input   wire                    i_debug                     ,
+    
+    input   wire                    i_debug_p_mem_w_en          ,
+    input   wire [NB_ADDRESS-1:0]   i_debug_p_mem_w_addr        ,
+    input   wire [NB_DATA   -1:0]   i_debug_p_mem_w_data        ,
+    
+    input   wire [NB_ADDRESS-1:0]           i_debug_d_mem_addr          ,
+    input   wire [NB_ADDR_REGISTERS-1:0]    i_debug_reg_addr            ,
     
     input   wire i_clk                          ,
-    input   wire i_clk_reset          //          ,
-    //input   wire i_reset                        
+    input   wire i_clk_en                       ,
+    //input   wire i_clk_reset          //          ,
+    input   wire i_reset                        
 );
 
 ///////////////////////////// IF ////////////////////////////
@@ -53,7 +68,8 @@ reg [NB_ADDRESS-1:0]   reg_branch_addr  = {32{1'b0}} ;
     
 reg                    reg_stall        = 1'b0 ;
     
-
+wire clk_en = i_clk_en;
+assign clk = i_clk;
 ////////////////////////// ID ////////////////////////////
 
 wire [NB_DATA_REGISTERS-1:0]    id_bus_a;
@@ -72,6 +88,7 @@ wire [NB_ALU_OP     -1 : 0]     id_alu_op        ;
     
 // Referido a un stall
 wire                            id_if_stall          ;
+wire                            id_if_halt           ;
     
 // Referido a un branch
 wire [NB_ADDRESS-1:0]           id_if_branch_addr    ;
@@ -136,21 +153,6 @@ wire                            wb_reg_w_en         ;
 //////////////////////////////////////////////////////////////////////
 ////////////////////////// Module instantiation //////////////////////
 //////////////////////////////////////////////////////////////////////
-
-assign o_clk = clk;
-assign o_locked = locked;
-
-assign i_reset = (~locked) | i_clk_reset;
-
-clk_wiz_0 instance_name
-   (
-    // Clock out ports
-    .clk(clk),     // output clk
-    // Status and control signals
-    .reset(i_clk_reset), // input reset
-    .locked(locked),       // output locked
-   // Clock in ports
-    .i_clk(i_clk));
     
 // if instantiation
 instruction_fetch
@@ -165,12 +167,20 @@ uut_instruction_fetch
     .o_next_pc_1    (if_next_pc)       , 
         
     //INPUTS
-    .i_branch       (reg_branch)        ,
-    .i_branch_addr  (reg_branch_addr)   ,
+    .i_branch       (id_if_branch)        ,   //reg_branch
+    .i_branch_addr  (id_if_branch_addr)   , //reg_branch_addr
     
-    .i_stall        (id_if_stall)         ,
+    .i_stall        (id_if_stall)       ,
+    .i_halt         (id_if_halt)        ,
+    
+    .i_debug             (i_debug),
+    .i_debug_w_en        (i_debug_p_mem_w_en),
+    .i_debug_w_addr      (i_debug_p_mem_w_addr),
+    .i_debug_w_data      (i_debug_p_mem_w_data),
+    
     
     .i_clk          (clk)           ,
+    .i_clk_en       (clk_en)        ,
     .i_reset        (i_reset)
  
 );
@@ -203,9 +213,16 @@ uut_instruction_decoder
     // Referido a un stall
     .o_if_stall     (id_if_stall)      ,
     
+    //Referido a un halt
+    .o_if_halt      (id_if_halt)       ,
+    
     // Referido a un branch
     .o_if_branch_addr (id_if_branch_addr) ,
     .o_if_branch      (id_if_branch) ,
+    
+    // debug
+    .o_debug_reg_data   (o_debug_reg_data),
+    
     
     //INPUTS
     
@@ -231,7 +248,12 @@ uut_instruction_decoder
     .i_wb_reg_addr      (wb_reg_num)            ,
     .i_wb_reg_en        (wb_reg_w_en)           ,
     
+    //debug
+    .i_debug            (i_debug) ,
+    .i_debug_reg_addr   (i_debug_reg_addr)      ,
+    
     .i_clk              (clk)                   ,
+    .i_clk_en           (clk_en)                ,
     .i_reset            (i_reset)
 );
 
@@ -285,6 +307,7 @@ uut_exectution
     .i_wb_ctl_rw (wb_reg_w_en  ),
     
     .i_reset(i_reset),
+    .i_clk_en       (clk_en)        ,
     .i_clk(clk)
 );
 
@@ -308,6 +331,8 @@ uut_memory_access
     .o_ex_ctl_reg_write (ma_ex_ctl_reg_write)       ,
     .o_id_ctl_mem_read  (ma_id_ctl_mem_read)        ,
     
+    .o_debug_mem_r_data (o_debug_d_mem_data) ,
+    
     //INPUTS                                                            //agregar rd_num
     .i_mem_data         (ex_w_data_mem)     ,
     .i_mem_addr         (ex_result)         ,
@@ -315,7 +340,12 @@ uut_memory_access
     .i_control_ma_wb    (ex_control_ma_wb)  ,
     
     .i_rd_num           (ex_rd_num)         ,
+    
+    .i_debug            (i_debug)              ,
+    .i_debug_mem_addr   (i_debug_d_mem_addr),
+    
     .i_clk              (clk)               ,
+    .i_clk_en           (clk_en)            ,
     .i_reset            (i_reset)     
 );
 
@@ -338,5 +368,9 @@ uut_write_back
 );
 
 assign o_wb_reg_w_data = wb_reg_w_data;
+assign o_if_halt = id_if_halt;
+assign o_if_pc   = if_next_pc;
+
+
 
 endmodule
