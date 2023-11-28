@@ -13,8 +13,13 @@ module memory_access
     parameter NB_DATA     = 32,
     parameter NB_DATA_BUS = 32,
     parameter NB_ADDR_REGISTERS = 5,
-    parameter N_DATA_MEM_ADDR  = 64,
-    parameter NB_ADDR_MEM = $clog2(N_DATA_MEM_ADDR),
+    
+    parameter N_DATA_MEM_ADDR_BYTES  = 128,
+    parameter NB_ADDR_MEM_BYTES = $clog2(N_DATA_MEM_ADDR_BYTES),
+    
+    parameter N_DATA_MEM_ADDR_WORDS  = N_DATA_MEM_ADDR_BYTES / 4,
+    parameter NB_ADDR_MEM_WORDS = $clog2(N_DATA_MEM_ADDR_WORDS),
+    
     parameter NB_CONTROL_MA     =  5,
     parameter NB_CONTROL_WB     =  2,
     parameter NB_CONTROL_MA_WB    =  NB_CONTROL_MA  + NB_CONTROL_WB  
@@ -35,13 +40,21 @@ module memory_access
     output  wire    [NB_DATA-1:0]           o_ex_rd_data        ,
     output  wire                            o_id_ctl_mem_read   ,
                                                                 //agregar rd_num
+    output  wire    [NB_DATA-1:0]           o_debug_mem_r_data  ,
+    
+    
     input   wire    [NB_DATA-1:0]           i_mem_data          ,
     input   wire    [NB_DATA-1:0]           i_mem_addr          ,
     
     input   wire    [NB_CONTROL_MA_WB-1:0]  i_control_ma_wb     ,
     
     input   wire    [NB_ADDR_REGISTERS-1:0] i_rd_num            ,
+    
+    input   wire                            i_debug             ,
+    input   wire    [NB_DATA-1:0]           i_debug_mem_addr    ,
+    
     input   wire                            i_clk               ,
+    input   wire                            i_clk_en            ,
     input   wire                            i_reset     
 );
 
@@ -58,6 +71,8 @@ reg     [NB_DATA-1:0]           reg_o_reg_data     ;
 reg     [NB_ADDR_REGISTERS-1:0] reg_o_reg_num      ;
 reg     [NB_CONTROL_WB -1:0]    reg_o_control_wb   ;
 
+wire    [NB_DATA-1:0]   mem_d_r_data         ;
+reg     [NB_DATA-1:0]   reg_o_mem_d_r_data   ;
 
 
 // Asigno las señales de control usando el ctl bus
@@ -66,23 +81,28 @@ assign ctl_mem_write  = i_control_ma_wb[NB_CONTROL_MA_WB-2];
 assign ctl_addressing = i_control_ma_wb[NB_CONTROL_MA_WB-3-:2];
 assign ctl_signing    = i_control_ma_wb[NB_CONTROL_MA_WB-5];
 
+
 // Mem instantiation                            //FALTA SIGNING - Ya ta
-full_memory#()
-data_memory
-(
-    .o_r_data           (mem_r_data)                    ,
+combined_memory#()
+data_memory    
+  (
+    .o_r_data           (mem_r_data)                        ,
+    .o_d_r_data         (mem_d_r_data)                      ,
     
-    .i_r_addr           (i_mem_addr[NB_ADDR_MEM-1:0])   ,
-    .i_r_addressing     (ctl_addressing)                ,
-    .i_r_signing        (ctl_signing)                   ,
-    .i_r_en             (ctl_mem_read)                  ,
+    .i_addr             (i_mem_addr[NB_ADDR_MEM_BYTES-1:0])         ,
+    .i_addressing       (ctl_addressing)                            ,
+
     
-    .i_w_data           (i_mem_data)                    ,
-    .i_w_addr           (i_mem_addr[NB_ADDR_MEM-1:0])   ,
-    .i_w_addressing     (ctl_addressing)                ,
-    .i_w_en             (ctl_mem_write)                 ,
+    .i_r_en             (ctl_mem_read)                              ,
+    .i_r_signing        (ctl_signing)                               ,
+	
+    .i_w_data           (i_mem_data)                                ,
+    .i_w_en             (ctl_mem_write)                             ,
     
-    .i_clk              (i_clk)
+    .i_d_en             (i_debug)                                   ,
+    .i_d_addr           (i_debug_mem_addr[NB_ADDR_MEM_WORDS-1:0])   ,
+	
+    .i_clk              (i_clk)    
 );
 
 
@@ -96,11 +116,13 @@ always @(posedge i_clk) begin
         //reg_o_reg_num      <= {NB_ADDR_REGISTERS{1'b0}};
         reg_o_control_wb   <= {NB_CONTROL_WB{1'b0}};
     end
-    else begin
+    else if (i_clk_en) begin
         reg_o_mem_r_data   <= mem_r_data;
         reg_o_reg_data     <= i_mem_addr;
         reg_o_reg_num      <= i_rd_num  ;
         reg_o_control_wb   <= i_control_ma_wb[NB_CONTROL_WB-1:0];
+        
+        //reg_o_mem_d_r_data <= mem_d_r_data;
     end
 end
 
@@ -115,5 +137,6 @@ assign o_ex_rd_data = i_mem_addr;
 assign o_ex_ctl_reg_write = i_control_ma_wb[0];    // Esto ver en id
 assign o_id_ctl_mem_read = ctl_mem_read;
 
+assign o_debug_mem_r_data = mem_d_r_data;
 
 endmodule
