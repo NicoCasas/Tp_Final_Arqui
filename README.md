@@ -5,7 +5,3 @@ Patterson: https://ia600201.us.archive.org/24/items/ComputerOrganizationAndDesig
 
 FPGA Prototyping: https://faculty.kfupm.edu.sa/COE/aimane/coe405/FPGA%20Prototyping%20with%20Verilog%20examples.pdf
 
-Darle bola a las carpetas:
-  - src
-  - sim
-  - constraints
